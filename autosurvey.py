@@ -2,6 +2,10 @@ from typing import TypedDict
 from langgraph.graph import StateGraph, END, START
 from langchain.chat_models import init_chat_model
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+
+class QueriesList(BaseModel):
+    queries: list[str] = Field(description= 'list of academic queries')
 
 load_dotenv(override= True)
 
@@ -26,19 +30,10 @@ def queries_generate(state: ResearchState) -> dict:
     interation: {state['interation']}
     
     """
-    response = model.invoke(system_prompt)
-    queries = response.content.strip()
-
-    try:
-        queries = eval(queries)
-        if not isinstance(queries, list):
-            queries = [queries]
-
-    except Exception as e:
-        queries = [queries]
+    response = model.with_structured_output(QueriesList).invoke(system_prompt)
 
 
-    return {'queries': queries,
+    return {'queries': response.queries,
             'interation': interation}
 
 def search_paper(state: ResearchState) -> dict:
@@ -50,7 +45,7 @@ def evaluate_paper(state: ResearchState) -> dict:
     count = state['paper_count']
     interation = state['interation']
 
-    if interation< 2  and count < 10:
+    if count < 10:
         return {'status': 'retry'}
     
     else:
