@@ -42,14 +42,21 @@ def search_paper(state: ResearchState) -> dict:
     return {'paper_count': 3*count}
 
 def evaluate_paper(state: ResearchState) -> dict:
-    count = state['paper_count']
-    interation = state['interation']
+    queries = state['queries']
+    has_survey = any('survey' in q.lower() or 'review' in q.lower() for q in queries)
+    has_specific = any('benchmark' in q.lower() or 'framework' in q.lower() or 'planning' in q.lower() for q in queries)
 
-    if count < 10:
+    if len(queries) < 4:
         return {'status': 'retry'}
     
-    else:
-        return {'status': 'enough'}
+    if not has_specific:
+        return {'status': 'retry'}
+    
+    if not has_survey:
+        return {'status': 'retry'}
+    
+    return {'status': 'enough'}
+
     
 def rounte_by_evaluate(state: ResearchState):
     return state['status']
@@ -75,7 +82,7 @@ workflow.add_conditional_edges(
 )
 
 app = workflow.compile()
-result = app.invoke({'topic': 'rag',
+result = app.invoke({'topic': 'multi-agent systems for scientific literature survey',
                      'interation': 0})
 
 print(result)
