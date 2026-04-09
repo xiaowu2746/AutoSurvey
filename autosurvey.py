@@ -1,5 +1,9 @@
 from typing import TypedDict
 from langgraph.graph import StateGraph, END, START
+from langchain.chat_models import init_chat_model
+from dotenv import load_dotenv
+
+load_dotenv(override= True)
 
 class ResearchState(TypedDict):
     interation: int
@@ -12,19 +16,27 @@ class ResearchState(TypedDict):
 def queries_generate(state: ResearchState) -> dict:
     topic = state['topic']
     interation = state.get('interation', 0) + 1
-    if interation == 1:
-        queries = [
-            topic,
-            f'{topic} survey',
-            f'{topic} benchmark'
-        ]
-    else:
-        queries = [
-            topic,
-            f'{topic} I',
-            f'{topic} II',
-            f'{topic} III'
-        ]
+    system_prompt = f""""
+    请你根据主题要求给出适合论文检索的queries，满足一下要求 
+    1.给我一个python列表，里面装着每个queries的英文 
+    2.如果Interation为1那么请给我三个queries,如果interation大于1，给我5个queries 
+    3.不要解释 只给出列表即可
+
+    topic: {state['topic']}
+    interation: {state['interation']}
+    
+    """
+    response = model.invoke(system_prompt)
+    queries = response.content.strip()
+
+    try:
+        queries = eval(queries)
+        if not isinstance(queries, list):
+            queries = [queries]
+
+    except Exception as e:
+        queries = [queries]
+
 
     return {'queries': queries,
             'interation': interation}
@@ -46,6 +58,9 @@ def evaluate_paper(state: ResearchState) -> dict:
     
 def rounte_by_evaluate(state: ResearchState):
     return state['status']
+
+
+model = init_chat_model('deepseek-chat')
 
 
 workflow = StateGraph(ResearchState)
